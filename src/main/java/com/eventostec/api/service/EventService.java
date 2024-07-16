@@ -3,6 +3,7 @@ package com.eventostec.api.service;
 import com.amazonaws.services.s3.AmazonS3;
 import com.eventostec.api.domain.event.Event;
 import com.eventostec.api.domain.event.EventRequestDTO;
+import com.eventostec.api.repositories.EventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -11,17 +12,23 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.UUID;
 
 @Service
 public class EventService {
 
+    @Value("${aws.bucket.name}")
+    private String bucketName;
+
     @Autowired
     private AmazonS3 amazonS3;
 
-    @Value("${aws.bucket.name}")
-    private String bucketName;
+    @Autowired
+    private EventRepository eventRepository;
 
     public Event createEvent(EventRequestDTO eventRequestDTO) {
         String imgUrl = null;
@@ -29,8 +36,14 @@ public class EventService {
         if (eventRequestDTO.image() != null) {
             imgUrl = upLoadImg(eventRequestDTO.image());
         }
+        var event = buildEvent(eventRequestDTO, imgUrl);
+        try {
+            eventRepository.save(event);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
 
-        return buildEvent(eventRequestDTO, imgUrl);
+        return event;
     }
 
     private String upLoadImg(MultipartFile multipartFile) {
@@ -63,9 +76,13 @@ public class EventService {
                 .imgUrl(imgUrl)
                 .eventUrl(eventRequestDTO.eventUrl())
                 .remote(eventRequestDTO.remote())
-                .date(eventRequestDTO.date())
+                .date(convertStringToTimestamp(eventRequestDTO.date()))
                 .build();
     }
 
-
+    private Timestamp convertStringToTimestamp(String dateString) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime localDateTime = LocalDateTime.parse(dateString, formatter);
+        return Timestamp.valueOf(localDateTime);
+    }
 }
