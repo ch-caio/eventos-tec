@@ -12,21 +12,18 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.UUID;
+
+import static com.eventostec.api.domain.event.Event.buildEvent;
 
 @Service
 public class EventService {
 
     @Value("${aws.bucket.name}")
     private String bucketName;
-
     @Autowired
     private AmazonS3 amazonS3;
-
     @Autowired
     private EventRepository eventRepository;
 
@@ -37,11 +34,7 @@ public class EventService {
             imgUrl = upLoadImg(eventRequestDTO.image());
         }
         var event = buildEvent(eventRequestDTO, imgUrl);
-        try {
-            eventRepository.save(event);
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+        eventRepository.save(event);
 
         return event;
     }
@@ -67,22 +60,5 @@ public class EventService {
         fos.write(multipartFile.getBytes());
         fos.close();
         return convFile;
-    }
-
-    private Event buildEvent(EventRequestDTO eventRequestDTO, String imgUrl) {
-        return Event.builder()
-                .title(eventRequestDTO.title())
-                .description(eventRequestDTO.description())
-                .imgUrl(imgUrl)
-                .eventUrl(eventRequestDTO.eventUrl())
-                .remote(eventRequestDTO.remote())
-                .date(convertStringToTimestamp(eventRequestDTO.date()))
-                .build();
-    }
-
-    private Timestamp convertStringToTimestamp(String dateString) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime localDateTime = LocalDateTime.parse(dateString, formatter);
-        return Timestamp.valueOf(localDateTime);
     }
 }
